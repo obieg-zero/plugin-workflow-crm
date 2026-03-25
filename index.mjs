@@ -9564,6 +9564,7 @@ const plugin = (deps) => {
         nodes: wf.nodes,
         edges: wf.edges,
         nodeTypes: graphNodeTypes,
+        colorMode: document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light",
         defaultViewport: vp,
         nodesDraggable: false,
         nodesConnectable: false,

@@ -222,6 +222,7 @@ const plugin: PluginFactory = (deps) => {
     return <ui.Box header={<ui.Cell label>{wf.name}</ui.Cell>} body={
       <div style={{ height: 300, filter: 'saturate(0.3)' }}>
         <ReactFlow key={cas.id + wf.id + activeNodeId} nodes={wf.nodes} edges={wf.edges} nodeTypes={graphNodeTypes}
+          colorMode={document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'}
           defaultViewport={vp} nodesDraggable={false} nodesConnectable={false} panOnDrag={false} zoomOnScroll={false} zoomOnPinch={false} zoomOnDoubleClick={false} preventScrolling={false} proOptions={{ hideAttribution: true }} />
       </div>
     } />

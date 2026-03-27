@@ -8757,160 +8757,6 @@ function getNextStage(wf, currentId) {
   const idx = wf.stages.findIndex((s) => s.id === currentId);
   return idx >= 0 && idx < wf.stages.length - 1 ? wf.stages[idx + 1].id : null;
 }
-function SelectField({ field, bind, store, ui }) {
-  const options = store.usePosts(field.inputType.split(":")[1]).map((r) => ({ value: r.id, label: r.data.name || r.id }));
-  return /* @__PURE__ */ jsx(ui.Field, { label: field.label, required: field.required, children: options.length > 0 ? /* @__PURE__ */ jsx(ui.Select, { ...bind(field.key), options: [{ value: "", label: "— wybierz —" }, ...options] }) : /* @__PURE__ */ jsx(ui.Input, { ...bind(field.key), placeholder: "Wpisz ręcznie" }) });
-}
-function FormView({ node, cas, wf, store, sdk, ui, advanceToStage, getNextStage: getNextStage2 }) {
-  var _a, _b;
-  const stepNum = (_a = node.data.label.match(/^(\d+)/)) == null ? void 0 : _a[1];
-  const title = node.data.label.replace(/^\d+\.\s*/, "");
-  const stage = wf.stages.find((s) => s.id === node.id);
-  const recordType = stage.recordType || "case";
-  const isLinked = recordType !== "case";
-  const linkedId = cas.data[`${recordType}Id`];
-  const linkedRecords = store.usePosts(recordType);
-  const linkedRecord = isLinked && linkedId ? linkedRecords.find((r) => r.id === linkedId) : void 0;
-  const schema = node.data.fields || ((_b = store.getType(recordType)) == null ? void 0 : _b.schema) || [];
-  const formDefaults = isLinked ? (linkedRecord == null ? void 0 : linkedRecord.data) || {} : cas.data || {};
-  const isComplete = (data) => schema.filter((f) => f.required).every((f) => !!data[f.key]);
-  const { bind, incomplete, submit } = sdk.useForm(formDefaults, {
-    onSubmit: (data) => {
-      submitStageData(store, cas, stage, data);
-      sdk.log("Zapisano", "ok");
-    },
-    isComplete,
-    sync: isLinked ? linkedRecord == null ? void 0 : linkedRecord.data : cas.data
-  });
-  const nextId = getNextStage2(wf, node.id);
-  return /* @__PURE__ */ jsx(ui.Page, { children: /* @__PURE__ */ jsx(ui.Stage, { children: /* @__PURE__ */ jsx(
-    ui.StageLayout,
-    {
-      top: /* @__PURE__ */ jsxs(ui.Stack, { gap: "md", children: [
-        /* @__PURE__ */ jsx(ui.StepHeading, { step: stepNum, title, subtitle: node.data.description }),
-        schema.map(
-          (f) => {
-            var _a2;
-            return ((_a2 = f.inputType) == null ? void 0 : _a2.startsWith("select:")) ? /* @__PURE__ */ jsx(SelectField, { field: f, bind, store, ui }, f.key) : /* @__PURE__ */ jsx(ui.Field, { label: f.label, required: f.required, children: /* @__PURE__ */ jsx(ui.Input, { ...bind(f.key), type: f.inputType }) }, f.key);
-          }
-        )
-      ] }),
-      bottom: /* @__PURE__ */ jsxs(ui.Stack, { children: [
-        nextId && /* @__PURE__ */ jsx(ui.Button, { size: "lg", color: "primary", block: true, disabled: incomplete, onClick: async () => {
-          await submit();
-          advanceToStage(cas.id, nextId, wf);
-        }, children: "Dalej" }),
-        !nextId && /* @__PURE__ */ jsx(ui.Button, { size: "lg", color: "primary", block: true, disabled: incomplete, onClick: submit, children: "Zapisz" })
-      ] })
-    }
-  ) }) });
-}
-function DecisionView({ node, cas, wf, ui, advanceToStage }) {
-  const title = node.data.label.replace(/^\d+\.\s*/, "");
-  return /* @__PURE__ */ jsx(ui.Page, { children: /* @__PURE__ */ jsx(ui.Stage, { children: /* @__PURE__ */ jsx(
-    ui.StageLayout,
-    {
-      top: /* @__PURE__ */ jsx(ui.StepHeading, { title, subtitle: "Wybierz dalsze działanie" }),
-      bottom: /* @__PURE__ */ jsx(ui.Stack, { children: wf.branches.filter((b) => b.from === node.id).map((b) => /* @__PURE__ */ jsx(ui.Button, { size: "lg", color: "primary", outline: true, block: true, onClick: () => advanceToStage(cas.id, b.to, wf), children: b.label || b.to }, b.to)) })
-    }
-  ) }) });
-}
-function TimelineView({ node, cas, wf, ui, sdk, icons, store, uploadFile, downloadFile, useEvents, advanceToStage, getNextStage: getNextStage2 }) {
-  var _a;
-  const stepNum = (_a = node.data.label.match(/^(\d+)/)) == null ? void 0 : _a[1];
-  const title = node.data.label.replace(/^\d+\.\s*/, "");
-  const events = useEvents(cas.id);
-  const { form, bind, set: set2 } = sdk.useForm({ kind: "notatka", text: "", date: "" });
-  const KINDS = [{ value: "notatka", label: "Notatka" }, { value: "termin", label: "Termin" }];
-  const KCOL = { notatka: "info", termin: "warning", plik: "accent", etap: "success" };
-  const nextId = getNextStage2(wf, node.id);
-  const addEvent = async () => {
-    if (!form.text.trim()) return;
-    await store.add("event", { kind: form.kind, text: form.text.trim(), date: form.date, done: false }, { parentId: cas.id });
-    set2({ text: "", date: "" });
-    sdk.log(`Dodano ${form.kind}`, "ok");
-  };
-  return /* @__PURE__ */ jsx(ui.Page, { children: /* @__PURE__ */ jsx(ui.Stage, { children: /* @__PURE__ */ jsx(
-    ui.StageLayout,
-    {
-      top: /* @__PURE__ */ jsxs(ui.Stack, { gap: "md", children: [
-        /* @__PURE__ */ jsx(ui.StepHeading, { step: stepNum, title, subtitle: node.data.description }),
-        events.map((ev) => /* @__PURE__ */ jsx(
-          ui.ListItem,
-          {
-            label: /* @__PURE__ */ jsxs(Fragment, { children: [
-              /* @__PURE__ */ jsx(ui.Badge, { color: KCOL[ev.data.kind] || "ghost", children: ev.data.kind }),
-              " ",
-              ev.data.text
-            ] }),
-            detail: ev.data.date || new Date(ev.createdAt).toISOString().slice(0, 10),
-            onClick: ev.data.kind === "plik" ? () => downloadFile(ev) : void 0,
-            action: ev.data.kind === "termin" && !ev.data.done ? /* @__PURE__ */ jsx(ui.Button, { size: "xs", color: "success", onClick: () => store.update(ev.id, { done: true }), children: "✓" }) : /* @__PURE__ */ jsx(ui.RemoveButton, { onClick: () => store.remove(ev.id) })
-          },
-          ev.id
-        ))
-      ] }),
-      bottom: /* @__PURE__ */ jsxs(ui.Stack, { children: [
-        /* @__PURE__ */ jsxs(ui.Row, { children: [
-          /* @__PURE__ */ jsx(ui.Select, { value: form.kind, options: KINDS, onChange: (e) => set2("kind", e.target.value) }),
-          /* @__PURE__ */ jsx(ui.Input, { ...bind("text"), placeholder: "Treść...", onKeyDown: (e) => e.key === "Enter" && addEvent() }),
-          form.kind === "termin" && /* @__PURE__ */ jsx(ui.Input, { ...bind("date"), type: "date" }),
-          /* @__PURE__ */ jsx(ui.Button, { size: "xs", color: "primary", onClick: addEvent, children: "+" }),
-          /* @__PURE__ */ jsx(ui.Button, { size: "xs", color: "ghost", onClick: () => uploadFile(cas.id), children: /* @__PURE__ */ jsx(icons.Upload, { size: 12 }) })
-        ] }),
-        nextId && /* @__PURE__ */ jsx(ui.Button, { size: "lg", color: "primary", block: true, onClick: () => advanceToStage(cas.id, nextId, wf), children: "Dalej" })
-      ] })
-    }
-  ) }) });
-}
-function GenericView({ node, cas, wf, ui, advanceToStage, getNextStage: getNextStage2 }) {
-  var _a;
-  const stepNum = (_a = node.data.label.match(/^(\d+)/)) == null ? void 0 : _a[1];
-  const title = node.data.label.replace(/^\d+\.\s*/, "");
-  const nextId = getNextStage2(wf, node.id);
-  const cl = node.data.checklist || [];
-  return /* @__PURE__ */ jsx(ui.Page, { children: /* @__PURE__ */ jsx(ui.Stage, { children: /* @__PURE__ */ jsx(
-    ui.StageLayout,
-    {
-      top: /* @__PURE__ */ jsxs(ui.Stack, { gap: "md", children: [
-        /* @__PURE__ */ jsx(ui.StepHeading, { step: stepNum, title, subtitle: node.data.description }),
-        cl.length > 0 && cl.map((c, i) => /* @__PURE__ */ jsx(ui.CheckItem, { label: c.text }, i))
-      ] }),
-      bottom: nextId ? /* @__PURE__ */ jsx(ui.Button, { size: "lg", color: "primary", block: true, onClick: () => advanceToStage(cas.id, nextId, wf), children: "Dalej" }) : void 0
-    }
-  ) }) });
-}
-function submitStageData(store, cas, stage, data) {
-  const recordType = stage.recordType || "case";
-  if (recordType === "case") {
-    store.update(cas.id, data);
-    return {};
-  }
-  const refKey = `${recordType}Id`;
-  const existingId = cas.data[refKey];
-  if (existingId && store.get(existingId)) {
-    store.update(existingId, data);
-    return { linkedId: existingId };
-  }
-  const rec = store.add(recordType, data, { parentId: cas.id });
-  store.update(cas.id, { [refKey]: rec.id });
-  return { linkedId: rec.id };
-}
-const builtinViews = {
-  form: FormView,
-  decision: DecisionView,
-  timeline: TimelineView,
-  generic: GenericView
-};
-const customViews = {};
-function registerStageView(name, component) {
-  customViews[name] = component;
-}
-function getStageView(node) {
-  if (node.id.startsWith("dec")) return builtinViews.decision;
-  const v = node.data.view || "generic";
-  return customViews[v] || builtinViews[v] || builtinViews.generic;
-}
 const TASK_ICONS = { data: "Edit3", upload: "Upload", extract: "Search", generate: "FileText" };
 const handleStyle = { width: 8, height: 8, background: "#94a3b8" };
 const dotStyle = { width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", flexShrink: 0 };
@@ -9446,7 +9292,7 @@ const plugin = (deps) => {
       }
     ) }) });
   }
-  registerStageView("upload", UploadView);
+  sdk.registerStageView("upload", UploadView);
   if (!document.getElementById("rf-css")) {
     const el = document.createElement("style");
     el.id = "rf-css";
@@ -9550,7 +9396,7 @@ const plugin = (deps) => {
     ) }) });
     const node = wf.nodes.find((n) => n.id === activeNodeId);
     if (!node) return /* @__PURE__ */ jsx(ui.Page, { children: /* @__PURE__ */ jsx(ui.Stage, { children: /* @__PURE__ */ jsx(ui.Placeholder, { text: "Wybierz etap na grafie" }) }) });
-    const View = getStageView(node);
+    const View = sdk.getStageView(node);
     return /* @__PURE__ */ jsx(View, { ...blockProps(node, cas, wf) });
   }
   function RightPanel() {
